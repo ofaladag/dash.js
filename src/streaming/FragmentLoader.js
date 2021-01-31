@@ -87,6 +87,10 @@ function FragmentLoader(config) {
         }
     }
 
+    let free_all = 0,
+        mfhd_all = 0,
+        reports  = 0,
+        problems = 0;
     function load(request) {
         const report = function (data, error) {
             eventBus.trigger(events.LOADING_COMPLETED, {
@@ -106,12 +110,51 @@ function FragmentLoader(config) {
                         stream: event.stream
                     });
                     if (event.data) {
-                        eventBus.trigger(events.LOADING_DATA_PROGRESS, {
-                            request: request,
-                            response: event.data || null,
-                            error: null,
-                            sender: instance
-                        });
+                        const isoFile = config.boxParser.parse(event.data);
+                            /** //TODO
+                             * moof-traf-tfdt base_media_decode_time
+                             * (init) moov-mvhd timescale
+                             * x / y = seconds duration
+                             * 
+                             * duration, (free) mvs_count
+                             */
+                        try {
+                            let free_boxes = isoFile.getBoxes("free");
+                            let mfhd_boxes = isoFile.getBoxes("mfhd");
+
+                            free_boxes = free_boxes.map(e => e.mv_data);
+                            mfhd_boxes = mfhd_boxes.map(e => e.sequence_number);
+                            
+                            if (request.mediaType == "video") {
+                                reports++;
+                                free_all += free_boxes.length;
+                                mfhd_all += mfhd_boxes.length;
+
+                                let prev_problems = problems;
+                                if (free_boxes.length != mfhd_boxes.length)
+                                    problems++;
+
+                                if (prev_problems != problems)
+                                    console.error("Inconsistency", problems, reports, parseFloat((problems/reports).toFixed(2)), free_all, mfhd_all, free_all - mfhd_all);
+
+                                if (mfhd_boxes.length > 0)
+                                    console.warn(((1000/29.97002997002997) * mfhd_boxes[0])/1000);
+                            }
+                            
+                            eventBus.trigger(events.LOADING_DATA_PROGRESS, {
+                                request: request,
+                                response:
+                                    {
+                                        data: event.data,
+                                        free_boxes: isoFile.getBoxes("free"),
+                                        mdat_boxes: isoFile.getBoxes("mfhd"),
+                                    } || null,
+                                error: null,
+                                sender: instance,
+                            });
+                        } catch (error) {
+                            console.warn(error)
+                        }
                     }
                 },
                 success: function (data) {

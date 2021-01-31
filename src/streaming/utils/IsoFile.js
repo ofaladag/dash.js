@@ -66,6 +66,12 @@ function IsoFile() {
         for (let i = 0, ln = boxData.length; i < ln; i++) {
             box = convertToDashIsoBox(boxData[i]);
 
+            if (box.type === "free") {
+                box.mv_data = parseFloat(
+                    String.fromCharCode(...boxData[i].data)
+                );
+            }
+
             if (box) {
                 boxes.push(box);
             }
