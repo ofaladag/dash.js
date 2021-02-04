@@ -119,35 +119,16 @@ function FragmentLoader(config) {
                              * duration, (free) mvs_count
                              */
                         try {
-                            let free_boxes = isoFile.getBoxes("free");
-                            let mfhd_boxes = isoFile.getBoxes("mfhd");
-
-                            free_boxes = free_boxes.map(e => e.mv_data);
-                            mfhd_boxes = mfhd_boxes.map(e => e.sequence_number);
-                            
-                            if (request.mediaType == "video") {
-                                reports++;
-                                free_all += free_boxes.length;
-                                mfhd_all += mfhd_boxes.length;
-
-                                let prev_problems = problems;
-                                if (free_boxes.length != mfhd_boxes.length)
-                                    problems++;
-
-                                if (prev_problems != problems)
-                                    console.error("Inconsistency", problems, reports, parseFloat((problems/reports).toFixed(2)), free_all, mfhd_all, free_all - mfhd_all);
-
-                                if (mfhd_boxes.length > 0)
-                                    console.warn(((1000/29.97002997002997) * mfhd_boxes[0])/1000);
-                            }
+                            let free_boxes = isoFile.getBoxes("free").map(e => e.mv_data);
+                            let mdat_boxes = isoFile.getBoxes("mdat");
                             
                             eventBus.trigger(events.LOADING_DATA_PROGRESS, {
                                 request: request,
                                 response:
                                     {
                                         data: event.data,
-                                        free_boxes: isoFile.getBoxes("free"),
-                                        mdat_boxes: isoFile.getBoxes("mfhd"),
+                                        free_boxes,
+                                        mdat_boxes,
                                     } || null,
                                 error: null,
                                 sender: instance,
