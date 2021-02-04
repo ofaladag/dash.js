@@ -307,7 +307,7 @@ function FragmentModel(config) {
         eventBus.trigger(events.FRAGMENT_LOADING_PROGRESS,
             {
                 request: e.request,
-                response: e.response.data,
+                response: e.response,
                 error: e.error,
                 sender: this
             },

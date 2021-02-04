@@ -87,10 +87,6 @@ function FragmentLoader(config) {
         }
     }
 
-    let free_all = 0,
-        mfhd_all = 0,
-        reports  = 0,
-        problems = 0;
     function load(request) {
         const report = function (data, error) {
             eventBus.trigger(events.LOADING_COMPLETED, {
@@ -110,31 +106,23 @@ function FragmentLoader(config) {
                         stream: event.stream
                     });
                     if (event.data) {
-                        const isoFile = config.boxParser.parse(event.data);
-                            /** //TODO
-                             * moof-traf-tfdt base_media_decode_time
-                             * (init) moov-mvhd timescale
-                             * x / y = seconds duration
-                             * 
-                             * duration, (free) mvs_count
-                             */
                         try {
-                            let free_boxes = isoFile.getBoxes("free").map(e => e.mv_data);
-                            let mdat_boxes = isoFile.getBoxes("mdat");
+                            if (request.mediaType == "video") {
+                                const isoFile = config.boxParser.parse(event.data);
+                                const mv_data = isoFile.getBoxes("free").map(e => { return {mv: e.mv, frame: e.frame} });
+                                // eventBus.trigger(events.MOTION_VECTOR_RECEIVED, { mv_data }, { priority: eventBus.EVENT_PRIORITY_HIGH });
+                                if (window.onMotionVectorDataReceived)
+                                    window.onMotionVectorDataReceived({ mv_data });
+                            }
                             
                             eventBus.trigger(events.LOADING_DATA_PROGRESS, {
                                 request: request,
-                                response:
-                                    {
-                                        data: event.data,
-                                        free_boxes,
-                                        mdat_boxes,
-                                    } || null,
+                                response: event.data || null,
                                 error: null,
                                 sender: instance,
                             });
                         } catch (error) {
-                            console.warn(error)
+                            console.warn(error);
                         }
                     }
                 },

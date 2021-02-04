@@ -331,6 +331,12 @@ class MediaPlayerEvents extends EventsBase {
         this.PLAYBACK_STARTED = 'playbackStarted';
 
         /**
+         * Sent when a motion vector data has been processed.
+         * @event MediaPlayerEvents#MOTION_VECTOR_RECEIVED
+         */
+        this.MOTION_VECTOR_RECEIVED = 'motionVectorReceived';
+
+        /**
          * The time indicated by the element's currentTime attribute has changed.
          * @event MediaPlayerEvents#PLAYBACK_TIME_UPDATED
          */

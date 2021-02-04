@@ -158,6 +158,19 @@ function DashAdapter() {
     }
 
     /**
+     * Returns the frameRate from manifest file
+     * @returns {float} frame rate
+     * @memberOf module:DashAdapter
+     * @instance
+     */
+    function getFrameRate() {
+        const manifest = getManifest();
+
+        if (!manifest) return NaN;
+        return eval(manifest.Period.AdaptationSet.find(e => e.contentType === "video").frameRate);
+    }
+
+    /**
      * Returns the AdaptationSet for a given period and a given mediaType.
      * @param {number} periodIndex
      * @param {MediaType} type
@@ -941,6 +954,7 @@ function DashAdapter() {
         getEvent: getEvent,
         getMpd,
         setConfig: setConfig,
+        getFrameRate: getFrameRate,
         updatePeriods: updatePeriods,
         getIsTextTrack: getIsTextTrack,
         getUTCTimingSources: getUTCTimingSources,
