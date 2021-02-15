@@ -607,6 +607,7 @@ function PlaybackController() {
             !isPaused() &&
             !isSeeking()
         ) {
+
             if (_needToCatchUp()) {
                 startPlaybackCatchUp();
             } else {
@@ -626,20 +627,22 @@ function PlaybackController() {
         const deltaLatency = currentLiveLatency - liveDelay;
 
         let newRate = 1.0;
-        if (
-            settings.get().streaming.liveCatchup.minDrift <
-            Math.abs(deltaLatency)
-        ) {
+ 
             // Let's get current MV
             let mv = getClosestMotionVector();
             if (mv) {
-                let nonSensitivity = mv.mv;
-                if (deltaLatency < 0 || bufferLevel < liveDelay) {
-                    newRate = 1 - (cpr * nonSensitivity);
-                } else {
-                    newRate = 1 + (cpr * nonSensitivity);
+                let isSensitive = mv.mv;
+
+                if(isSensitive == 1){
+                    newRate = 1;
+                }else{
+                    if (deltaLatency < 0 || bufferLevel < liveDelay) {
+                        newRate = 1 - cpr;
+                    } else {
+                        newRate = 1  + cpr;
+                    }
                 }
-            }
+               
         }
 
         if (Math.abs(currentPlaybackRate - newRate) <= minPlaybackRateChange) {
