@@ -598,7 +598,7 @@ function PlaybackController() {
     }
     //! Temporary solution for slow eventBus
     window.onMotionVectorDataReceived = onMotionVectorDataReceived;
-
+    let pbState = 1;
     function onPlaybackProgression() {
         if (
             isDynamic &&
@@ -607,11 +607,28 @@ function PlaybackController() {
             !isPaused() &&
             !isSeeking()
         ) {
-
+            console.log("mediaPlayerModel.getLiveCatchupLatencyThreshold() : " + mediaPlayerModel.getLiveCatchupLatencyThreshold() + " isSensitive: " + getClosestMotionVector().mv +" getBufferLevel: " + getBufferLevel() + " getCurrentLiveLatency: " + getCurrentLiveLatency() + " getPlaybackRate : " + getPlaybackRate())
             if (_needToCatchUp()) {
                 startPlaybackCatchUp();
             } else {
                 stopPlaybackCatchUp();
+            }
+
+            if(getPlaybackRate() == 1){
+                if(pbState != 1){
+                    pbState = 1;
+                    console.log("Go Normal!");
+                }
+            }else if(getPlaybackRate() < 1){
+                if(pbState != 0){
+                    pbState = 0;
+                    console.log("Go Slower!");
+                }
+            }else if(getPlaybackRate() > 1){
+                if(pbState != 2){
+                    pbState = 2;
+                    console.log("Go Faster!");
+                }
             }
         }
     }
@@ -627,11 +644,11 @@ function PlaybackController() {
         const deltaLatency = currentLiveLatency - liveDelay;
 
         let newRate = 1.0;
- 
+        let isSensitive =  0 ; 
             // Let's get current MV
             let mv = getClosestMotionVector();
             if (mv) {
-                let isSensitive = mv.mv;
+                isSensitive = mv.mv;
 
                 if(isSensitive == 1){
                     newRate = 1;
@@ -648,6 +665,7 @@ function PlaybackController() {
         if (Math.abs(currentPlaybackRate - newRate) <= minPlaybackRateChange) {
             newRate = null;
         }
+
 
         return {
             newRate: newRate,
@@ -716,10 +734,22 @@ function PlaybackController() {
                     const playbackBufferMin = settings.get().streaming.liveCatchup.playbackBufferMin;
 
                     return _lolpNeedToCatchUpCustom(currentLiveLatency, liveDelay, liveCatchUpMinDrift, currentBuffer, playbackBufferMin, liveCatchupLatencyThreshold);
-                } else {
+                } else if(catchupMode === Constants.LIVE_CATCHUP_MODE_APR){
+                    return _adaptivePlaybackNeedToCatchUp(currentLiveLatency, liveDelay, liveCatchupLatencyThreshold, liveCatchUpMinDrift);
+                }else{
                     return _defaultNeedToCatchUp(currentLiveLatency, liveDelay, liveCatchupLatencyThreshold, liveCatchUpMinDrift);
                 }
             }
+        } catch (e) {
+            return false;
+        }
+    }
+
+    function _adaptivePlaybackNeedToCatchUp(currentLiveLatency, liveDelay, liveCatchupLatencyThreshold, minDrift) {
+        try {
+            const latencyDrift = Math.abs(currentLiveLatency - liveDelay);
+
+            return getBufferLevel()<liveDelay || (latencyDrift > minDrift && (isNaN(liveCatchupLatencyThreshold) || currentLiveLatency <= liveCatchupLatencyThreshold));
         } catch (e) {
             return false;
         }
@@ -743,6 +773,7 @@ function PlaybackController() {
             return false;
         }
     }
+
 
     /**
      * LoL+ logic to determine if catchup mode should be enabled
