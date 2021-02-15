@@ -590,7 +590,8 @@ function PlaybackController() {
             for (let free in data.mv_data) {
                 let mv = data.mv_data[free].mv;
                 let frame = data.mv_data[free].frame;
-                mvBuffer.push({ time: (frame / fps).toFixed(6), mv });
+                if (!isNaN(frame / fps))
+                    mvBuffer.push({ time: (frame / fps).toFixed(6), mv });
             }
         }
     }
@@ -615,6 +616,42 @@ function PlaybackController() {
                 stopPlaybackCatchUp();
             }
         }
+    }
+
+    function _calculateNewAdaptivePlaybackRate(
+        liveCatchUpPlaybackRate,
+        currentLiveLatency,
+        liveDelay,
+        bufferLevel,
+        currentPlaybackRate
+    ) {
+        const cpr = liveCatchUpPlaybackRate;
+        const deltaLatency = currentLiveLatency - liveDelay;
+
+        let newRate = 1.0;
+        if (
+            settings.get().streaming.liveCatchup.minDrift <
+            Math.abs(deltaLatency)
+        ) {
+            // Let's get current MV
+            let mv = getClosestMotionVector(getTime());
+            if (mv) {
+                let nonSensitivity = mv.mv;
+                if (deltaLatency < 0 || bufferLevel < liveDelay) {
+                    newRate = 1 - (cpr * nonSensitivity);
+                } else {
+                    newRate = 1 + (cpr * nonSensitivity);
+                }
+            }
+        }
+
+        if (Math.abs(currentPlaybackRate - newRate) <= minPlaybackRateChange) {
+            newRate = null;
+        }
+
+        return {
+            newRate: newRate,
+        };
     }
 
     function _isCatchupEnabled() {
@@ -734,6 +771,8 @@ function PlaybackController() {
                 // Default playback control: Based on target and current latency
                 results = _calculateNewPlaybackRateDefault(liveCatchupPlaybackRate, currentLiveLatency, liveDelay, bufferLevel, currentPlaybackRate);
             }
+
+            results = _calculateNewAdaptivePlaybackRate(liveCatchupPlaybackRate, currentLiveLatency, liveDelay, bufferLevel, currentPlaybackRate);
 
             // Obtain newRate and apply to video model
             let newRate = results.newRate;
