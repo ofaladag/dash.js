@@ -598,7 +598,7 @@ function PlaybackController() {
     }
     //! Temporary solution for slow eventBus
     window.onMotionVectorDataReceived = onMotionVectorDataReceived;
-    let pbState = 1;
+
     function onPlaybackProgression() {
         if (
             isDynamic &&
@@ -607,28 +607,10 @@ function PlaybackController() {
             !isPaused() &&
             !isSeeking()
         ) {
-            console.log("mediaPlayerModel.getLiveCatchupLatencyThreshold() : " + mediaPlayerModel.getLiveCatchupLatencyThreshold() + " isSensitive: " + getClosestMotionVector().mv +" getBufferLevel: " + getBufferLevel() + " getCurrentLiveLatency: " + getCurrentLiveLatency() + " getPlaybackRate : " + getPlaybackRate())
             if (_needToCatchUp()) {
                 startPlaybackCatchUp();
             } else {
                 stopPlaybackCatchUp();
-            }
-
-            if(getPlaybackRate() == 1){
-                if(pbState != 1){
-                    pbState = 1;
-                    console.log("Go Normal!");
-                }
-            }else if(getPlaybackRate() < 1){
-                if(pbState != 0){
-                    pbState = 0;
-                    console.log("Go Slower!");
-                }
-            }else if(getPlaybackRate() > 1){
-                if(pbState != 2){
-                    pbState = 2;
-                    console.log("Go Faster!");
-                }
             }
         }
     }
