@@ -167,7 +167,7 @@ function DashAdapter() {
         const manifest = getManifest();
 
         if (!manifest) return NaN;
-        return eval(manifest.Period.AdaptationSet.find(e => e.contentType === "video").frameRate);
+        return eval(manifest.Period.AdaptationSet.frameRate);
     }
 
     /**
