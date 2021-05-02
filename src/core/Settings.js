@@ -281,6 +281,7 @@ import {HTTPRequest} from '../streaming/vo/metrics/HTTPRequest';
  * This will directly affect the buffer targets when playing back at the top quality.
  * @property {number} [wallclockTimeUpdateInterval=50] How frequently the wallclockTimeUpdated internal event is triggered (in milliseconds).
  * @property {boolean} [lowLatencyEnabled=false] Enable or disable low latency mode
+ * @property {string} [videoEventSteamURL=null] Set the video event strea URL
  * @property {boolean} [keepProtectionMediaKeys=false]
  * Set the value for the ProtectionController and MediaKeys life cycle. If true, the
  * ProtectionController and then created MediaKeys and MediaKeySessions will be preserved during
@@ -441,6 +442,7 @@ function Settings() {
             longFormContentDurationThreshold: 600,
             wallclockTimeUpdateInterval: 50,
             lowLatencyEnabled: false,
+            videoEventSteamURL: null,
             keepProtectionMediaKeys: false,
             useManifestDateHeaderTimeSource: true,
             useSuggestedPresentationDelay: true,

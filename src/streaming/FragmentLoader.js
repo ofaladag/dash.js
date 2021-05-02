@@ -107,17 +107,9 @@ function FragmentLoader(config) {
                     });
                     if (event.data) {
                         try {
-                            if (request.mediaType == "video") {
-                                const isoFile = config.boxParser.parse(event.data);
-                                const mv_data = isoFile.getBoxes("free").map(e => { return {mv: e.mv, frame: e.frame} });
-                                // eventBus.trigger(events.MOTION_VECTOR_RECEIVED, { mv_data }, { priority: eventBus.EVENT_PRIORITY_HIGH });
-                                if (window.onMotionVectorDataReceived)
-                                    window.onMotionVectorDataReceived({ mv_data });
-                            }
-                            
                             eventBus.trigger(events.LOADING_DATA_PROGRESS, {
                                 request: request,
-                                response: event.data || null,
+                                response: event,
                                 error: null,
                                 sender: instance,
                             });

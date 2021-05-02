@@ -55,7 +55,8 @@ function PlaybackController() {
         liveDelay,
         streamInfo,
         isDynamic,
-        mvBuffer,
+        videoEventBuffer,
+        videoEventSSE,
         mediaPlayerModel,
         playOnceInitialized,
         lastLivePlaybackTime,
@@ -93,7 +94,6 @@ function PlaybackController() {
         eventBus.on(Events.LOADING_PROGRESS, onFragmentLoadProgress, this);
         eventBus.on(Events.BUFFER_LEVEL_STATE_CHANGED, onBufferLevelStateChanged, this);
         eventBus.on(Events.PLAYBACK_PROGRESS, onPlaybackProgression, this);
-        eventBus.on(Events.MOTION_VECTOR_RECEIVED, onMotionVectorDataReceived, this);
         eventBus.on(Events.PLAYBACK_TIME_UPDATED, onPlaybackProgression, this);
         eventBus.on(Events.PLAYBACK_ENDED, onPlaybackEnded, this, { priority: EventBus.EVENT_PRIORITY_HIGH });
         eventBus.on(Events.STREAM_INITIALIZING, onStreamInitializing, this);
@@ -128,6 +128,15 @@ function PlaybackController() {
                         startTime = Math.max(Math.min(startTime, startTimeFromUri), dvrWindow.start);
                     }
                 }
+
+                videoEventSSE = new EventSource(
+                    `${
+                        settings.get().streaming.videoEventSteamURL
+                    }?t=${startTime}`
+                );
+                videoEventSSE.addEventListener("periodic-event", (e) => {
+                    videoEventBuffer.push(JSON.parse(e.data));
+                });
             } else {
                 // For static stream, start by default at period start
                 startTime = streamInfo.start;
@@ -332,14 +341,13 @@ function PlaybackController() {
             eventBus.off(Events.BUFFER_LEVEL_STATE_CHANGED, onBufferLevelStateChanged, this);
             eventBus.off(Events.LOADING_PROGRESS, onFragmentLoadProgress, this);
             eventBus.off(Events.PLAYBACK_PROGRESS, onPlaybackProgression, this);
-            eventBus.off(Events.MOTION_VECTOR_RECEIVED, onMotionVectorDataReceived, this);
             eventBus.off(Events.PLAYBACK_TIME_UPDATED, onPlaybackProgression, this);
             eventBus.off(Events.PLAYBACK_ENDED, onPlaybackEnded, this);
             eventBus.off(Events.STREAM_INITIALIZING, onStreamInitializing, this);
             stopUpdatingWallclockTime();
             removeAllListeners();
         }
-        mvBuffer = [];
+        videoEventBuffer = [];
         wallclockTimeIntervalId = null;
         videoModel = null;
         streamInfo = null;
@@ -577,27 +585,13 @@ function PlaybackController() {
         }
     }
 
-    function getClosestMotionVector() {
+    function getClosestVideoEvent() {
         let forTime = getTime();
-        mvBuffer.sort((a, b) => {
+        videoEventBuffer.sort((a, b) => {
             return Math.abs(forTime - a.time) - Math.abs(forTime - b.time);
         });
-        return mvBuffer[0];
+        return videoEventBuffer[0];
     }
-
-    function onMotionVectorDataReceived(data) {
-        if (Array.isArray(data.mv_data) && data.mv_data.length > 0) {
-            let fps = adapter.getFrameRate();
-            for (let free in data.mv_data) {
-                let mv = data.mv_data[free].mv;
-                let frame = data.mv_data[free].frame;
-                if (!isNaN(frame / fps))
-                    mvBuffer.push({ time: (frame / fps).toFixed(6), mv });
-            }
-        }
-    }
-    //! Temporary solution for slow eventBus
-    window.onMotionVectorDataReceived = onMotionVectorDataReceived;
 
     function onPlaybackProgression() {
         if (
@@ -626,28 +620,26 @@ function PlaybackController() {
         const deltaLatency = currentLiveLatency - liveDelay;
 
         let newRate = 1.0;
-        let isSensitive =  0 ; 
-            // Let's get current MV
-            let mv = getClosestMotionVector();
-            if (mv) {
-                isSensitive = mv.mv;
+        let isSensitive = 0;
+        // Let's get current MV
+        let event = getClosestVideoEvent();
+        if (event) {
+            isSensitive = event.density;
 
-                if(isSensitive == 1){
-                    newRate = 1;
-                }else{
-                    if (deltaLatency < 0 || bufferLevel < liveDelay) {
-                        newRate = 1 - cpr;
-                    } else {
-                        newRate = 1  + cpr;
-                    }
+            if (isSensitive == 1) {
+                newRate = 1;
+            } else {
+                if (deltaLatency < 0 || bufferLevel < liveDelay) {
+                    newRate = 1 - cpr;
+                } else {
+                    newRate = 1 + cpr;
                 }
-               
+            }
         }
 
         if (Math.abs(currentPlaybackRate - newRate) <= minPlaybackRateChange) {
             newRate = null;
         }
-
 
         return {
             newRate: newRate,
