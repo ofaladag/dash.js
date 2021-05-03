@@ -590,7 +590,12 @@ function PlaybackController() {
         videoEventBuffer.sort((a, b) => {
             return Math.abs(forTime - a.time) - Math.abs(forTime - b.time);
         });
-        return videoEventBuffer[0];
+
+        let returnVal = videoEventBuffer[0];
+        if (returnVal === undefined)
+            return { density: 0, empty: true };
+
+        return returnVal;
     }
 
     function onPlaybackProgression() {
@@ -607,43 +612,6 @@ function PlaybackController() {
                 stopPlaybackCatchUp();
             }
         }
-    }
-
-    function _calculateNewAdaptivePlaybackRate(
-        liveCatchUpPlaybackRate,
-        currentLiveLatency,
-        liveDelay,
-        bufferLevel,
-        currentPlaybackRate
-    ) {
-        const cpr = liveCatchUpPlaybackRate;
-        const deltaLatency = currentLiveLatency - liveDelay;
-
-        let newRate = 1.0;
-        let isSensitive = 0;
-        // Let's get current MV
-        let event = getClosestVideoEvent();
-        if (event) {
-            isSensitive = event.density;
-
-            if (isSensitive == 1) {
-                newRate = 1;
-            } else {
-                if (deltaLatency < 0 || bufferLevel < liveDelay) {
-                    newRate = 1 - cpr;
-                } else {
-                    newRate = 1 + cpr;
-                }
-            }
-        }
-
-        if (Math.abs(currentPlaybackRate - newRate) <= minPlaybackRateChange) {
-            newRate = null;
-        }
-
-        return {
-            newRate: newRate,
-        };
     }
 
     function _isCatchupEnabled() {
@@ -679,11 +647,6 @@ function PlaybackController() {
             !isNaN(playbackBufferMin)
         ) {
             return Constants.LIVE_CATCHUP_MODE_LOLP;
-        } else if (
-            settings.get().streaming.liveCatchup.mode ===
-            Constants.LIVE_CATCHUP_MODE_APR
-        ) {
-            return Constants.LIVE_CATCHUP_MODE_APR;
         }
 
         return Constants.LIVE_CATCHUP_MODE_DEFAULT;
@@ -708,22 +671,10 @@ function PlaybackController() {
                     const playbackBufferMin = settings.get().streaming.liveCatchup.playbackBufferMin;
 
                     return _lolpNeedToCatchUpCustom(currentLiveLatency, liveDelay, liveCatchUpMinDrift, currentBuffer, playbackBufferMin, liveCatchupLatencyThreshold);
-                } else if(catchupMode === Constants.LIVE_CATCHUP_MODE_APR){
-                    return _adaptivePlaybackNeedToCatchUp(currentLiveLatency, liveDelay, liveCatchupLatencyThreshold, liveCatchUpMinDrift);
-                }else{
+                } else{
                     return _defaultNeedToCatchUp(currentLiveLatency, liveDelay, liveCatchupLatencyThreshold, liveCatchUpMinDrift);
                 }
             }
-        } catch (e) {
-            return false;
-        }
-    }
-
-    function _adaptivePlaybackNeedToCatchUp(currentLiveLatency, liveDelay, liveCatchupLatencyThreshold, minDrift) {
-        try {
-            const latencyDrift = Math.abs(currentLiveLatency - liveDelay);
-
-            return getBufferLevel()<liveDelay || (latencyDrift > minDrift && (isNaN(liveCatchupLatencyThreshold) || currentLiveLatency <= liveCatchupLatencyThreshold));
         } catch (e) {
             return false;
         }
@@ -786,8 +737,6 @@ function PlaybackController() {
                 const liveCatchUpMinDrift = settings.get().streaming.liveCatchup.minDrift;
                 const playbackBufferMin = settings.get().streaming.liveCatchup.playbackBufferMin;
                 results = _calculateNewPlaybackRateLolP(liveCatchupPlaybackRate, currentLiveLatency, liveDelay, liveCatchUpMinDrift, playbackBufferMin, bufferLevel, currentPlaybackRate);
-            } else if (_getCatchupMode() === Constants.LIVE_CATCHUP_MODE_APR) {
-                results = _calculateNewAdaptivePlaybackRate(liveCatchupPlaybackRate, currentLiveLatency, liveDelay, bufferLevel, currentPlaybackRate);
             } else {
                 // Default playback control: Based on target and current latency
                 results = _calculateNewPlaybackRateDefault(liveCatchupPlaybackRate, currentLiveLatency, liveDelay, bufferLevel, currentPlaybackRate);
@@ -870,6 +819,8 @@ function PlaybackController() {
         const cpr = liveCatchUpPlaybackRate;
         let newRate;
 
+        let videoEvent = getClosestVideoEvent();
+
         // Hybrid: Buffer-based
         if (bufferLevel < playbackBufferMin) {
             // Buffer in danger, slow down
@@ -878,7 +829,7 @@ function PlaybackController() {
 
             // Playback rate must be between (1 - cpr) - (1 + cpr)
             // ex: if cpr is 0.5, it can have values between 0.5 - 1.5
-            const s = (cpr * 2) / (1 + Math.pow(Math.E, -d));
+            const s = (cpr * 2) / (1 + Math.pow(Math.E, -d * (1 - videoEvent.density ** 2)));
             newRate = (1 - cpr) + s;
 
             logger.debug('[LoL+ playback control_buffer-based] bufferLevel: ' + bufferLevel + ', newRate: ' + newRate);
@@ -896,12 +847,19 @@ function PlaybackController() {
 
                 // Playback rate must be between (1 - cpr) - (1 + cpr)
                 // ex: if cpr is 0.5, it can have values between 0.5 - 1.5
-                const s = (cpr * 2) / (1 + Math.pow(Math.E, -d));
+                const s = (cpr * 2) / (1 + Math.pow(Math.E, -d * (1 - videoEvent.density ** 2)));
                 newRate = (1 - cpr) + s;
             }
 
             logger.debug('[LoL+ playback control_latency-based] latency: ' + currentLiveLatency + ', newRate: ' + newRate);
         }
+
+        console.debug({
+            newRate,
+            currentPlaybackRate,
+            currentLiveLatency,
+            ...videoEvent,
+        });
 
         if (playbackStalled) {
             if (bufferLevel > liveDelay / 2) {
