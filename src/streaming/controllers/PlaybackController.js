@@ -132,7 +132,7 @@ function PlaybackController() {
                 videoEventSSE = new EventSource(
                     `${
                         settings.get().streaming.videoEventSteamURL
-                    }?t=${startTime}`
+                    }&t=${startTime}`
                 );
                 videoEventSSE.addEventListener("periodic-event", (e) => {
                     videoEventBuffer.push(JSON.parse(e.data));
@@ -592,7 +592,10 @@ function PlaybackController() {
         });
 
         let returnVal = videoEventBuffer[0];
-        if (returnVal === undefined)
+        if (
+            returnVal === undefined ||
+            returnVal.duration / 1000 + returnVal.time > forTime
+        )
             return { density: 0, empty: true };
 
         return returnVal;
