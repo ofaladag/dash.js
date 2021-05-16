@@ -594,7 +594,8 @@ function PlaybackController() {
         let returnVal = videoEventBuffer[0];
         if (
             returnVal === undefined ||
-            returnVal.duration / 1000 + returnVal.time > forTime
+            returnVal.duration / 1000 + returnVal.time < forTime ||
+            forTime < returnVal.time
         )
             return { density: 0, empty: true };
 
