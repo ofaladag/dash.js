@@ -587,11 +587,19 @@ function PlaybackController() {
 
     function getClosestVideoEvent() {
         let forTime = getTime();
-        videoEventBuffer.sort((a, b) => {
-            return Math.abs(forTime - a.time) - Math.abs(forTime - b.time);
-        });
+        // tmp_videoEventBuffer.sort((a, b) => {
+        //     return Math.abs(forTime - a.time) - Math.abs(forTime - b.time);
+        // });
 
-        let returnVal = videoEventBuffer[0];
+        let returnVal;
+        if (videoEventBuffer && videoEventBuffer.length > 1) {
+            for (let event of videoEventBuffer.reverse()) {
+                if (event.time <= forTime) {
+                    returnVal = event;
+                    break;
+                }
+            }
+        }
         if (
             returnVal === undefined ||
             returnVal.duration / 1000 + returnVal.time < forTime ||
@@ -610,6 +618,10 @@ function PlaybackController() {
             !isPaused() &&
             !isSeeking()
         ) {
+            window._globalLatestEvent = {
+                playerTime: getTime(),
+                ...getClosestVideoEvent(),
+            };
             if (_needToCatchUp()) {
                 startPlaybackCatchUp();
             } else {
