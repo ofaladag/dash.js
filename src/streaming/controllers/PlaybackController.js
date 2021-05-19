@@ -97,7 +97,7 @@ function PlaybackController() {
         eventBus.on(Events.PLAYBACK_TIME_UPDATED, onPlaybackProgression, this);
         eventBus.on(Events.PLAYBACK_ENDED, onPlaybackEnded, this, { priority: EventBus.EVENT_PRIORITY_HIGH });
         eventBus.on(Events.STREAM_INITIALIZING, onStreamInitializing, this);
-
+        window.getClosestEvent = getClosestVideoEvent;
         if (playOnceInitialized) {
             playOnceInitialized = false;
             play();
@@ -592,13 +592,16 @@ function PlaybackController() {
         // });
 
         let returnVal;
-        if (videoEventBuffer && videoEventBuffer.length > 1) {
-            for (let event of videoEventBuffer.reverse()) {
+        if (videoEventBuffer && videoEventBuffer.length > 0) {
+            for (let index = videoEventBuffer.length-1; index >=0; index--) {
+                let event = videoEventBuffer[index];
                 if (event.time <= forTime) {
                     returnVal = event;
                     break;
                 }
+                
             }
+            
         }
         if (
             returnVal === undefined ||
@@ -848,18 +851,18 @@ function PlaybackController() {
         if (bufferLevel < playbackBufferMin) {
             // Buffer in danger, slow down
             const deltaBuffer = bufferLevel - playbackBufferMin;  // -ve value
-            const d = deltaBuffer * 1;
+            const d = deltaBuffer * 2;
 
             // Playback rate must be between (1 - cpr) - (1 + cpr)
             // ex: if cpr is 0.5, it can have values between 0.5 - 1.5
             const s = (cpr * 2) / (1 + Math.pow(Math.E, -d * (1 - videoEvent.density ** 0.8)));
             newRate = (1 - cpr) + s;
-
+            /*
             console.warn({
                 default: (cpr * 2) / (1 + Math.pow(Math.E, -d)),
                 modified: (cpr * 2) / (1 + Math.pow(Math.E, -d * (1 - videoEvent.density ** 0.8)))
             });
-
+            */
             logger.debug('[LoL+ playback control_buffer-based] bufferLevel: ' + bufferLevel + ', newRate: ' + newRate);
         } else {
             // Hybrid: Latency-based
@@ -877,11 +880,12 @@ function PlaybackController() {
                 // ex: if cpr is 0.5, it can have values between 0.5 - 1.5
                 const s = (cpr * 2) / (1 + Math.pow(Math.E, -d * (1 - videoEvent.density ** 0.8)));
                 newRate = (1 - cpr) + s;
-
+                /*
                 console.warn({
                     default: (cpr * 2) / (1 + Math.pow(Math.E, -d)),
                     modified: (cpr * 2) / (1 + Math.pow(Math.E, -d * (1 - videoEvent.density ** 0.8)))
                 });
+                */
             }
 
             logger.debug('[LoL+ playback control_latency-based] latency: ' + currentLiveLatency + ', newRate: ' + newRate);
@@ -927,8 +931,6 @@ function PlaybackController() {
         const cpr = liveCatchUpPlaybackRate;
         let newRate;
 
-        let videoEvent = getClosestVideoEvent();
-
         // Hybrid: Buffer-based
         if (bufferLevel < playbackBufferMin) {
             // Buffer in danger, slow down
@@ -937,7 +939,7 @@ function PlaybackController() {
 
             // Playback rate must be between (1 - cpr) - (1 + cpr)
             // ex: if cpr is 0.5, it can have values between 0.5 - 1.5
-            const s = (cpr * 2) / (1 + Math.pow(Math.E, -d * (1 - videoEvent.density ** 2)));
+            const s = (cpr * 2) / (1 + Math.pow(Math.E, -d));
             newRate = (1 - cpr) + s;
 
             logger.debug('[LoL+ playback control_buffer-based] bufferLevel: ' + bufferLevel + ', newRate: ' + newRate);
@@ -955,7 +957,7 @@ function PlaybackController() {
 
                 // Playback rate must be between (1 - cpr) - (1 + cpr)
                 // ex: if cpr is 0.5, it can have values between 0.5 - 1.5
-                const s = (cpr * 2) / (1 + Math.pow(Math.E, -d * (1 - videoEvent.density ** 2)));
+                const s = (cpr * 2) / (1 + Math.pow(Math.E, -d));
                 newRate = (1 - cpr) + s;
             }
 
