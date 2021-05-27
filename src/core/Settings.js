@@ -350,9 +350,11 @@ import {HTTPRequest} from '../streaming/vo/metrics/HTTPRequest';
  * How frequently the wallclockTimeUpdated internal event is triggered (in milliseconds).
  * @property {boolean} [lowLatencyEnabled=false]
  * Enable or disable low latency mode.
+ * @property {string} [videoEventSteamURL=null]
+ * Set the video event strea URL
  * @property {boolean} [keepProtectionMediaKeys=false]
  * Set the value for the ProtectionController and MediaKeys life cycle.
- *
+ * 
  * If true, the ProtectionController and then created MediaKeys and MediaKeySessions will be preserved during the MediaPlayer lifetime.
  * @property {boolean} [useManifestDateHeaderTimeSource=true]
  * Allows you to enable the use of the Date Header, if exposed with CORS, as a timing source for live edge detection.
@@ -588,6 +590,9 @@ import {HTTPRequest} from '../streaming/vo/metrics/HTTPRequest';
  *
  * @property {boolean} [enabled=false]
  * Use this parameter to enable the catchup mode for non low-latency streams.
+ * 
+ * @property {boolean} [respectVideoEvents=false]
+ * Use this parameter to enable the video event adaptation for compatible streams
  *
  * @property {string} [mode="liveCatchupModeDefault"]
  * Use this parameter to switch between different catchup modes.
@@ -635,6 +640,7 @@ function Settings() {
             longFormContentDurationThreshold: 600,
             wallclockTimeUpdateInterval: 50,
             lowLatencyEnabled: false,
+            videoEventSteamURL: null,
             keepProtectionMediaKeys: false,
             useManifestDateHeaderTimeSource: true,
             useSuggestedPresentationDelay: true,
@@ -663,6 +669,7 @@ function Settings() {
                 latencyThreshold: 60,
                 playbackBufferMin: 0.5,
                 enabled: false,
+                respectVideoEvents: false,
                 mode: Constants.LIVE_CATCHUP_MODE_DEFAULT
             },
             lastBitrateCachingInfo: { enabled: true, ttl: 360000 },
